@@ -1,0 +1,108 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #1e1e2f;
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    /* on supprime align-items pour que le contenu commence en haut */
+    flex-direction: column;
+}
+
+.container {
+    max-width: 800px;
+    width: 90%;
+    margin: 30px auto; /* ajoute un margin top pour éviter que le haut soit coupé */
+    text-align: center;
+    background: #2e2e3e;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.6);
+}
+
+/* Boutons */
+button {
+    background: linear-gradient(135deg, #4caf50, #3a9d40);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 15px 0;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background: linear-gradient(135deg, #3a9d40, #2e7d32);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* Inputs */
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+form input {
+    width: 70%;
+    padding: 10px 14px;
+    font-size: 15px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background-color: #1e1e2f;
+    color: #fff;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+form input:focus {
+    border-color: #4caf50;
+    outline: none;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+}
+
+/* Résultat */
+#predResult {
+    margin-top: 20px;
+    padding: 12px;
+    background: #3a3a4a;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #4caf50;
+}
+
+/* Canvas (graph) */
+#costChart {
+    margin-top: 25px;
+    background: #1e1e2f;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* Container des couches cachées */
+#hiddenLayersContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Labels */
+label {
+    white-space: nowrap; /* corrige text-wrap incorrect */
+}
+
+/* Responsive pour petits écrans */
+@media (max-width: 500px) {
+    form input {
+        width: 90%;
+    }
+}

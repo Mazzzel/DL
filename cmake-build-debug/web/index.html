@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cost History IA</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<!-- Bouton hamburger -->
+<button id="menuToggle" class="menu-toggle">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
+
+<!-- Sidebar gauche -->
+<div id="networkSidebar" class="sidebar">
+    <div class="sidebar-header">
+        <h2>Gestion des réseaux</h2>
+        <button id="closeSidebar" class="close-btn">&times;</button>
+    </div>
+
+    <div class="sidebar-content">
+        <div class="form-group">
+            <h3>Sauvegarder</h3>
+            <label>Nom du réseau :</label>
+            <input type="text" id="networkName" placeholder="Ex: MonReseau">
+            <button id="saveNetworkBtn" class="btn-save">Enregistrer</button>
+        </div>
+
+        <div class="form-group">
+            <h3>Charger un réseau</h3>
+            <label>Réseaux disponibles :</label>
+            <div id="networkList">
+                <div class="empty-state">Aucun réseau sauvegardé</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay pour fermer le menu -->
+<div id="overlay" class="overlay"></div>
+
+<!-- Contenu principal -->
+<div class="main-content">
+    <div class="container" id="overlay">
+        <div class="header">
+            <h1>Configuration du réseau neuronal</h1>
+        </div>
+
+        <form id="setLayer" class="setLayer">
+            <div class="input-group">
+                <label for="inputLayer">Neurones couche d'entrée :</label>
+                <input type="number" step="1" name="input_layer" placeholder="Entrée" id="inputLayer">
+            </div>
+
+            <div class="input-group">
+                <label for="hiddenCount">Nombre de couches cachées :</label>
+                <input type="number" step="1" name="hidden_layers_count" placeholder="Ex: 2" id="hiddenCount">
+            </div>
+
+            <div id="hiddenLayersContainer"></div>
+
+            <div class="input-group">
+                <label for="outputLayer">Neurones couche de sortie :</label>
+                <input type="number" step="1" name="output_layer" placeholder="Sortie" id="outputLayer">
+            </div>
+
+            <button type="submit" class="btn-primary">Créer le réseau</button>
+        </form>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Historique de la Loss</h1>
+        </div>
+        <div class="chart-container">
+            <canvas id="costChart"></canvas>
+        </div>
+        <button id="trainBtn" class="btn-primary" disabled>Lancer l'entraînement</button>
+    </div>
+
+
+    <div class="container">
+        <div class="header">
+            <h1>Données + Frontière de décision</h1>
+        </div>
+        <div class="chart-container">
+            <canvas id="decisionChart"></canvas>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h2>Prédiction Iris</h2>
+        </div>
+        <form id="irisForm">
+            <div class="iris-grid">
+                <input type="number" step="0.01" name="sepal_length" placeholder="Longueur sépale">
+                <input type="number" step="0.01" name="sepal_width" placeholder="Largeur sépale">
+                <input type="number" step="0.01" name="petal_length" placeholder="Longueur pétale">
+                <input type="number" step="0.01" name="petal_width" placeholder="Largeur pétale">
+            </div>
+            <button id="predictBtn" type="submit" class="btn-primary" disabled>Prédire</button>
+        </form>
+        <div id="predResult"></div>
+    </div>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
