@@ -38,7 +38,7 @@ void init_weights(std::vector<Layer>& reseau) {
 
 void initializeDataset() {
     // Classe Setosa (10 échantillons)
-    X(0,0)=0.22; X(1,0)=0.63; X(2,0)=0.07; X(3,0)=0.04;
+    /*X(0,0)=0.22; X(1,0)=0.63; X(2,0)=0.07; X(3,0)=0.04;
     X(0,1)=0.17; X(1,1)=0.42; X(2,1)=0.07; X(3,1)=0.04;
     X(0,2)=0.11; X(1,2)=0.50; X(2,2)=0.05; X(3,2)=0.04;
     X(0,3)=0.08; X(1,3)=0.46; X(2,3)=0.08; X(3,3)=0.04;
@@ -82,7 +82,7 @@ void initializeDataset() {
     }
     for (int i = 20; i < 30; ++i) {
         Y(0,i)=0; Y(1,i)=0; Y(2,i)=1;  // Virginica
-    }
+    }*/
 }
 
 json generateDecisionBoundary(std::vector<Layer>& reseau, const Matrice& X_data, const Matrice& Y_data) {
@@ -228,6 +228,77 @@ void createNNFromJson(std::vector<Layer>& reseau, const json& j) {
     }
 }
 
+// Ajoutez cette fonction avant main()
+#include <sstream>
+
+std::pair<Matrice, Matrice> parseCSV(const std::string& csvContent) {
+    std::istringstream stream(csvContent);
+    std::string line;
+    std::vector<std::vector<float>> data;
+    std::vector<std::string> headers;
+
+    // --- Lire les headers ---
+    if (std::getline(stream, line)) {
+        std::istringstream headerStream(line);
+        std::string header;
+        while (std::getline(headerStream, header, ',')) {
+            // Trim
+            header.erase(0, header.find_first_not_of(" \t\r\n"));
+            header.erase(header.find_last_not_of(" \t\r\n") + 1);
+            headers.push_back(header);
+        }
+    }
+
+    // --- Lire les lignes de données ---
+    while (std::getline(stream, line)) {
+        if (line.empty()) continue;
+        std::istringstream lineStream(line);
+        std::string value;
+        std::vector<float> row;
+
+        while (std::getline(lineStream, value, ',')) {
+            try {
+                row.push_back(std::stof(value));
+            } catch (...) {
+                row.push_back(0.0f);
+            }
+        }
+        if (!row.empty()) data.push_back(row);
+    }
+
+    if (data.empty())
+        throw std::runtime_error("CSV vide ou invalide");
+
+    // --- Détection X et Y ---
+    int xCols = 0, yCols = 0;
+    for (const auto& h : headers) {
+        if (!h.empty() && (h[0] == 'X' || h[0] == 'x')) xCols++;
+        else if (!h.empty() && (h[0] == 'Y' || h[0] == 'y')) yCols++;
+    }
+
+    if (xCols == 0 || yCols == 0)
+        throw std::runtime_error("Le CSV doit contenir des colonnes X et Y");
+
+    int numSamples = static_cast<int>(data.size());
+
+    // --- Matrices : chaque ligne = un sample ---
+    Matrice X_new(numSamples, xCols);
+    Matrice Y_new(numSamples, yCols);
+
+    for (int i = 0; i < numSamples; ++i) {
+        int xIdx = 0, yIdx = 0;
+        for (size_t col = 0; col < headers.size() && col < data[i].size(); ++col) {
+            if (headers[col][0] == 'X' || headers[col][0] == 'x') {
+                X_new(i, xIdx++) = data[i][col];
+            } else if (headers[col][0] == 'Y' || headers[col][0] == 'y') {
+                Y_new(i, yIdx++) = data[i][col];
+            }
+        }
+    }
+
+    return {X_new, Y_new};
+}
+
 int main() {
     httplib::Server svr;
     int port = 8080;
@@ -355,6 +426,65 @@ int main() {
             std::cerr << "Erreur /deleteNetwork: " << e.what() << std::endl;
             res.status = 500;
             res.set_content(R"({"status":"error","message":"Erreur serveur"})", "application/json");
+        }
+    });
+
+    // Ajoutez cette route après les autres routes POST
+    svr.Post("/uploadCSV", [](const httplib::Request &req, httplib::Response &res) {
+        try {
+            // 🔹 Vérifier si un fichier a été envoyé
+            if (!req.form.has_file("file")) {
+                res.status = 400;
+                res.set_content(R"({"error":"Aucun fichier envoyé"})", "application/json");
+                return;
+            }
+
+            const auto &file = req.form.get_file("file");
+            std::string csvContent = file.content;
+
+            if (csvContent.empty()) {
+                res.status = 400;
+                res.set_content(R"({"error":"Fichier uploadé vide"})", "application/json");
+                return;
+            }
+
+            // Debug : afficher un aperçu du CSV
+            std::cout << "Taille du fichier lu: " << csvContent.size() << " octets" << std::endl;
+            std::cout << "Aperçu: " << csvContent.substr(0, std::min<size_t>(csvContent.size(), 200)) << std::endl;
+
+            // 🔹 Parser le CSV directement depuis le contenu
+            Matrice X_loaded, Y_loaded;
+            try {
+                std::tie(X_loaded, Y_loaded) = parseCSV(csvContent);
+            } catch (const std::exception& e) {
+                res.status = 400;
+                json error; error["error"] = std::string("Erreur parseCSV: ") + e.what();
+                res.set_content(error.dump(), "application/json");
+                return;
+            }
+
+            // 🔹 Assigner les matrices globales
+            X = X_loaded;
+            Y = Y_loaded;
+
+            std::cout << "parseCSV OK, X: " << X.getLignes() << "x" << X.getColonnes()
+                      << "  Y: " << Y.getLignes() << "x" << Y.getColonnes() << std::endl;
+
+            // 🔹 Réponse JSON
+            json response;
+            response["status"] = "ok";
+            response["x_rows"] = X.getLignes();
+            response["x_cols"] = X.getColonnes();
+            response["y_rows"] = Y.getLignes();
+            response["y_cols"] = Y.getColonnes();
+            response["samples"] = X.getColonnes();
+            Y.afficher();
+            res.set_content(response.dump(), "application/json");
+
+        } catch (const std::exception &e) {
+            json err = {{"error", e.what()}};
+            res.status = 500;
+            res.set_content(err.dump(), "application/json");
         }
     });
 

@@ -430,5 +430,73 @@ menuToggle.addEventListener('click', openMenu);
 closeSidebar.addEventListener('click', closeMenu);
 overlay.addEventListener('click', closeMenu);
 
+// === Upload CSV ===
+const csvFileInput = document.getElementById('csvFile');
+const uploadBtn = document.getElementById('uploadBtn');
+const fileNameSpan = document.getElementById('fileName');
+const dataInfo = document.getElementById('dataInfo');
+
+csvFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        fileNameSpan.textContent = file.name;
+        uploadBtn.disabled = false;
+    } else {
+        fileNameSpan.textContent = 'Aucun fichier sélectionné';
+        uploadBtn.disabled = true;
+    }
+});
+
+uploadBtn.addEventListener('click', async () => {
+    const file = csvFileInput.files[0];
+    if (!file) return;
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = '⏳ Chargement...';
+    dataInfo.classList.remove('visible', 'error');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/uploadCSV', {
+            method: 'POST',
+            body: formData
+        });
+
+        const text = await res.text();  // Lire d'abord la réponse brute
+        console.log("Raw response:", text);
+
+        let result;
+        try {
+            result = JSON.parse(text);   // Parser en JSON explicitement
+        } catch (e) {
+            throw new Error("Réponse serveur invalide JSON");
+        }
+
+        if (res.ok) {
+            dataInfo.classList.add('visible');
+            dataInfo.classList.remove('error');
+            dataInfo.innerHTML = `
+                ✅ <strong>Données chargées avec succès !</strong><br>
+                📊 Features (X) : ${result.x_rows} × ${result.x_cols}<br>
+                🎯 Labels (Y) : ${result.y_rows} × ${result.y_cols}
+            `;
+
+            if (!trainBtn.disabled) trainBtn.disabled = false;
+        } else {
+            throw new Error(result.error || 'Erreur inconnue');
+        }
+
+    } catch (error) {
+        console.error('Erreur upload CSV:', error);
+        dataInfo.classList.add('visible', 'error');
+        dataInfo.textContent = `❌ Erreur : ${error.message}`;
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = '⬆️ Charger les données';
+    }
+});
+
 // --- Initialisation ---
 loadNetworks();
