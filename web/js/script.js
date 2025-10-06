@@ -30,12 +30,36 @@ hiddenCountInput.addEventListener("input", () => {
 // === Variables principales ===
 const setLayerForm = document.getElementById('setLayer');
 const trainBtn = document.getElementById('trainBtn');
-const irisForm = document.getElementById('irisForm');
 const predictBtn = document.getElementById('predictBtn');
 const saveBtn = document.getElementById("saveNetworkBtn");
 const networkNameInput = document.getElementById("networkName");
 
 // --- Créer réseau ---
+
+// === Génération dynamique des inputs de prédiction ===
+let currentInputCount = 0;
+
+function generatePredictionInputs(count) {
+    const container = document.getElementById('predictionInputs');
+    container.innerHTML = '';
+    currentInputCount = count;
+
+    if (count === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #9ca3af; grid-column: 1/-1;">"Créez d\'abord un réseau ou chargez des données"</p>';
+        return;
+    }
+
+    for (let i = 0; i < count; i++) {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = '0.01';
+        input.placeholder = `Feature X${i + 1}`;
+        input.className = 'prediction-input';
+        input.required = true;
+        container.appendChild(input);
+    }
+}
+
 setLayerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -52,6 +76,9 @@ setLayerForm.addEventListener('submit', async (e) => {
             hidden_layers: hiddenLayers
         })
     });
+
+    // Générer les inputs de prédiction
+    generatePredictionInputs(inputLayer);
 
     trainBtn.disabled = false;
     predictBtn.disabled = true;
@@ -284,30 +311,37 @@ function createDecisionBoundary(data) {
 }
 
 // --- Décodage Iris ---
-function decodeIris(prediction) {
-    const classes = ["Setosa", "Versicolor", "Virginica"];
-    const index = prediction[0].findIndex(val => val === 1);
-    return classes[index] || "Inconnu";
-}
+const predictionForm = document.getElementById('predictionForm');
 
-// --- Prédiction ---
-irisForm.addEventListener('submit', async (e) => {
+predictionForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const inputs = irisForm.querySelectorAll('input');
-    const X_input = [[
-        parseFloat(inputs[0].value),
-        parseFloat(inputs[1].value),
-        parseFloat(inputs[2].value),
-        parseFloat(inputs[3].value)
-    ]];
+    const inputs = predictionForm.querySelectorAll('.prediction-input');
+
+    if (inputs.length === 0) {
+        alert('Aucune donnée à prédire');
+        return;
+    }
+
+    const X_input = [[...inputs].map(input => parseFloat(input.value))];
 
     const res = await fetch('/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(X_input)
     });
+
     const result = await res.json();
-    document.getElementById('predResult').innerText = decodeIris(result);
+
+    // Afficher les résultats
+    const predResultDiv = document.getElementById('predResult');
+    let resultHTML = '<strong>Prédiction:</strong><br>';
+
+    result[0].forEach((val, idx) => {
+        const percentage = (val * 100).toFixed(1);
+        resultHTML += `Classe ${idx + 1}: ${percentage}%<br>`;
+    });
+
+    predResultDiv.innerHTML = resultHTML;
 });
 
 // --- Sauvegarder réseau ---
@@ -390,7 +424,7 @@ async function loadNetworks() {
 // --- Supprimer un réseau ---
 async function deleteNetwork(name) {
     try {
-        const res = await fetch('/deleteNN', {
+        const res = await fetch('/deleteNetwork', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name })
@@ -464,12 +498,12 @@ uploadBtn.addEventListener('click', async () => {
             body: formData
         });
 
-        const text = await res.text();  // Lire d'abord la réponse brute
+        const text = await res.text();
         console.log("Raw response:", text);
 
         let result;
         try {
-            result = JSON.parse(text);   // Parser en JSON explicitement
+            result = JSON.parse(text);
         } catch (e) {
             throw new Error("Réponse serveur invalide JSON");
         }
@@ -483,7 +517,10 @@ uploadBtn.addEventListener('click', async () => {
                 🎯 Labels (Y) : ${result.y_rows} × ${result.y_cols}
             `;
 
-            if (!trainBtn.disabled) trainBtn.disabled = false;
+            // Générer les inputs de prédiction
+            generatePredictionInputs(result.x_rows);
+
+            trainBtn.disabled = false;
         } else {
             throw new Error(result.error || 'Erreur inconnue');
         }
