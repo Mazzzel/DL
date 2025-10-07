@@ -39,6 +39,9 @@ public:
     Matrice sum_columns() const;
     Matrice sigmoid() const;
     Matrice sigmoid_prime() const;
+    Matrice relu() const;
+    Matrice relu_prime() const;
+    Matrice softmax() const;
     float logLoss(const Matrice& y_true) const;
 };
 

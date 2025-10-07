@@ -196,6 +196,62 @@ Matrice Matrice::sigmoid_prime() const {
     return (*this).multiply_elementwise(1.0f - (*this));
 }
 
+Matrice Matrice::relu() const {
+    if (lignes == 0 || colonnes == 0)
+        throw std::runtime_error("ReLU sur une matrice vide");
+
+    Matrice result(lignes, colonnes);
+
+    for (int i = 0; i < lignes; ++i) {
+        for (int j = 0; j < colonnes; ++j) {
+            float x = (*this)(i, j);
+            result(i, j) = std::max(0.0f, x);
+        }
+    }
+    return result;
+}
+
+Matrice Matrice::relu_prime() const {
+    if (lignes == 0 || colonnes == 0)
+        throw std::runtime_error("ReLU_prime sur une matrice vide");
+
+    Matrice result(lignes, colonnes);
+
+    for (int i = 0; i < lignes; ++i) {
+        for (int j = 0; j < colonnes; ++j) {
+            float x = (*this)(i, j);
+            result(i, j) = (x > 0.0f) ? 1.0f : 0.0f;
+        }
+    }
+    return result;
+}
+
+Matrice Matrice::softmax() const {
+    Matrice result(lignes, colonnes);
+
+    for (int j = 0; j < colonnes; ++j) { // chaque échantillon = colonne
+        // 1️⃣ Trouver la valeur max pour stabilité numérique
+        float max_val = (*this)(0, j);
+        for (int i = 1; i < lignes; ++i)
+            if ((*this)(i, j) > max_val)
+                max_val = (*this)(i, j);
+
+        // 2️⃣ Calcul exponentiel
+        float sum_exp = 0.0f;
+        for (int i = 0; i < lignes; ++i) {
+            result(i, j) = std::exp((*this)(i, j) - max_val);
+            sum_exp += result(i, j);
+        }
+
+        // 3️⃣ Normalisation
+        for (int i = 0; i < lignes; ++i) {
+            result(i, j) /= sum_exp;
+        }
+    }
+
+    return result;
+}
+
 float Matrice::logLoss(const Matrice& y_true) const {
     if (y_true.lignes != lignes || y_true.colonnes != colonnes)
         throw std::invalid_argument("Dimensions incompatibles pour logLoss");
@@ -226,7 +282,19 @@ Matrice forward_pass(const Matrice& X, std::vector<Layer>& reseau) {
 
     for (size_t l = 0; l < reseau.size(); ++l) {
         reseau[l].Z = reseau[l].W.dot(A_prev) + reseau[l].b;
-        reseau[l].A = reseau[l].Z.sigmoid();
+
+        bool is_last_layer = (l == reseau.size() - 1);
+
+        if (is_last_layer) {
+            if (reseau[l].Z.getLignes() == 1) {
+                reseau[l].A = reseau[l].Z.sigmoid(); // binaire
+            } else {
+                reseau[l].A = reseau[l].Z.softmax(); // multi-classes
+            }
+        } else {
+            reseau[l].A = reseau[l].Z.relu();
+        }
+
         A_prev = reseau[l].A;
     }
 
@@ -253,7 +321,7 @@ void backprop(const Matrice& X, const Matrice& Y, float learning_rate, std::vect
 
     // Couches intermédiaires (de L-2 à 0)
     for (int l = L - 2; l >= 0; --l) {
-        dZ[l] = (reseau[l + 1].W.T().dot(dZ[l + 1])).multiply_elementwise(reseau[l].A.sigmoid_prime());
+        dZ[l] = (reseau[l + 1].W.T().dot(dZ[l + 1])).multiply_elementwise(reseau[l].A.relu_prime());
 
         if (l == 0) {
             dW[l] = (1.0f / m) * dZ[l].dot(X.T());
@@ -273,12 +341,29 @@ void backprop(const Matrice& X, const Matrice& Y, float learning_rate, std::vect
 
 Matrice predict(const Matrice& X, std::vector<Layer>& reseau) {
     Matrice A_final = forward_pass(X, reseau);
-    // Seuil à 0.5 pour classification binaire
-    for (int i = 0; i < A_final.getLignes(); ++i) {
+
+    if (A_final.getLignes() == 1) {
+        // binaire
+        for (int i = 0; i < A_final.getLignes(); ++i)
+            for (int j = 0; j < A_final.getColonnes(); ++j)
+                A_final(i, j) = (A_final(i, j) > 0.5f) ? 1.0f : 0.0f;
+    } else {
+        // multi-class → one-hot
         for (int j = 0; j < A_final.getColonnes(); ++j) {
-            A_final(i, j) = (A_final(i, j) > 0.5f) ? 1.0f : 0.0f;
+            int max_idx = 0;
+            float max_val = A_final(0, j);
+            for (int i = 1; i < A_final.getLignes(); ++i) {
+                if (A_final(i, j) > max_val) {
+                    max_val = A_final(i, j);
+                    max_idx = i;
+                }
+            }
+            for (int i = 0; i < A_final.getLignes(); ++i) {
+                A_final(i, j) = (i == max_idx) ? 1.0f : 0.0f;
+            }
         }
     }
+
     return A_final;
 }
 
